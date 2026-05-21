@@ -18,6 +18,8 @@
 
 #define TEMPDHT22 4
 #define DHTTYPE DHT22
+
+#define DS18B20 0
 /*==================== fin Definiciones ==================*/
 
 //Pines reloj DS1302

@@ -7,6 +7,8 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
 /*====================== Definiciones =====================*/
 #define DAT 17
@@ -19,7 +21,7 @@
 #define TEMPDHT22 4
 #define DHTTYPE DHT22
 
-#define DS18B20 0
+#define DS18B20 18
 /*==================== fin Definiciones ==================*/
 
 //Pines reloj DS1302
@@ -34,6 +36,10 @@ DHT dht(TEMPDHT22, DHTTYPE);
 
 //Variable para BH1750
 BH1750 lightMeter;
+
+// Sensor sumergible
+OneWire oneWire(DS18B20);
+DallasTemperature sensors(&oneWire);
 
 //Variables para publicar en dashboard
 WiFiClient espClient;
@@ -52,10 +58,11 @@ unsigned long horaActual = 0;
 //Metricas de interes
 float humidity = 0, tempDHT = 0;
 float lux = 0;
+float tempDeep = 0;
 
 //Datos de conexion a la red
-const char* ssid = "GalaxyA15";
-const char* password = "1294890";
+const char* ssid = "FCAL";
+const char* password = "fcalconcordia.06-2019";
 
 /*=============== fin Variables globales ================*/
 
@@ -81,6 +88,9 @@ void setup() {
   pinMode(TEMPDHT22, INPUT);
   dht.begin();
   
+  //--------------------------------------------------//
+  //------------- Inicialezar el sumergible ----------//
+  sensors.begin();
   //--------------------------------------------------//
   //-------------- Inicializar BH1750 ----------------//
   // Inicializar I2C (SDA = 21, SCL = 22)
@@ -135,6 +145,7 @@ void loop() {
 
       readDHT();
       readBH1750();
+      readDS18B20();
       updateLCD(now);
       sendData();
       horaprevia = horaActual;
@@ -179,6 +190,20 @@ void readBH1750() {
   Serial.println(F(" lx"));
 }
 
+//lectura de la zonda de temperatura
+void readDS18B20(){
+  sensors.requestTemperatures();
+  tempDeep = sensors.getTempCByIndex(0);
+  
+  if(tempDeep == DEVICE_DISCONNECTED_C){
+    Serial.println("Error DS18B20 desconectado");
+    return;
+  }
+
+  Serial.print(F("Temperatura agua: "));
+  Serial.print(tempDeep);
+  Serial.println(F(" C"));
+}
 // Funcion que escribe en el LCD
 void updateLCD(RtcDateTime now) {
 
@@ -265,6 +290,7 @@ void sendData() {
   doc["airTemperature"] = tempDHT;
   doc["humidity"] = humidity;
   doc["lightIntensity"] = lux;
+  doc["waterTemperature"] = tempDeep;
 
   char payload[200];
 

@@ -22,6 +22,21 @@
 #define DHTTYPE DHT22
 
 #define DS18B20 18
+
+#define BUTTON_1 3  /*Pin provisional */
+#define BUTTON_2 1  /*Pin provisional */
+#define BUTTON_3 39 /*Pin provisional */
+#define BUTTON_4 36 /*Pin provisional */
+
+#define NUM_BUTTONS 4
+#define DEBOUNCE_TIME 30
+
+typedef enum {
+   BUTTON_RELEASED,
+   BUTTON_PRESSING,
+   BUTTON_PRESSED,
+  BUTTON_RELEASING
+} ButtonState;
 /*==================== fin Definiciones ==================*/
 
 //Pines reloj DS1302
@@ -55,6 +70,9 @@ unsigned long ready = 0;
 unsigned long horaprevia = 0;
 unsigned long horaActual = 0;
 
+// Estado de la vista del LCD
+int StateView = 1;
+
 //Metricas de interes
 float humidity = 0, tempDHT = 0;
 float lux = 0;
@@ -64,12 +82,27 @@ float tempDeep = 0;
 const char* ssid = "FCAL";
 const char* password = "fcalconcordia.06-2019";
 
+//Variables para el control de pulsadores
+// Estado independiente para cada pulsador
+ButtonState button_state[NUM_BUTTONS] = { BUTTON_RELEASED, BUTTON_RELEASED, BUTTON_RELEASED, BUTTON_RELEASED };
+// Pines de los pulsadores
+const uint8_t button_pins[NUM_BUTTONS] = { BUTTON_1, BUTTON_2, BUTTON_3, BUTTON_4 };
+// Momento en que se detectó el cambio
+unsigned long button_timer[NUM_BUTTONS] = { 0, 0, 0, 0 };
+
+
 /*=============== fin Variables globales ================*/
 
 void setup() {
   
   Serial.begin(115200);
   Serial.println("ESP32 OK");
+
+  //--------------- Configurar pines ------------------//
+  pinMode(BUTTON_1, INPUT);
+  pinMode(BUTTON_2, INPUT);
+  pinMode(BUTTON_3, INPUT); 
+  pinMode(BUTTON_4, INPUT);
 
   //--------------- Inicializar RTC ------------------//
   
@@ -153,8 +186,228 @@ void loop() {
 
     ready = ahora;
   }
+
+  int boton = button_update();
+    /*
+   * Si boton != 0 significa que se confirmó
+   * una nueva pulsación.
+   */
+
+  if (boton != 0) {
+
+    Serial.print("Pulsador presionado: ");
+
+    Serial.println(boton);
+
+  }
+
 }
 /*=============== Desarrollo de funciones ====================*/
+
+// Funcion para actualizar el estado de los pulsadores
+int button_update(void) {
+
+
+  /* Recorremos los cuatro pulsadores.*/
+
+  for (int i = 0; i < NUM_BUTTONS; i++) {
+
+
+    /*
+     * PULL-DOWN:
+     *
+     * LOW  = liberado
+     * HIGH = presionado
+     */
+
+    bool pressed = digitalRead(button_pins[i]);
+
+
+    switch (button_state[i]) {
+
+
+      /*==================================================*/
+      /* BOTÓN LIBERADO                                   */
+      /*==================================================*/
+
+      case BUTTON_RELEASED:
+
+
+        /*
+         * Detectamos el comienzo de una pulsación.
+         */
+
+        if (pressed) {
+
+          button_state[i] = BUTTON_PRESSING;
+
+          /*
+           * Guardamos el momento exacto en que
+           * detectamos el cambio.
+           */
+
+          button_timer[i] = millis();
+
+        }
+
+        break;
+
+
+      /*==================================================*/
+      /* POSIBLE PULSACIÓN                                */
+      /*==================================================*/
+
+      case BUTTON_PRESSING:
+
+
+        /*
+         * Esperamos DEBOUNCE_TIME.
+         */
+
+        if (millis() - button_timer[i] >= DEBOUNCE_TIME) {
+
+
+          /*
+           * Después de 30 ms comprobamos nuevamente
+           * el estado del pulsador.
+           */
+
+          if (digitalRead(button_pins[i]) == HIGH) {
+
+
+            /*
+             * La pulsación fue confirmada.
+             */
+
+            button_state[i] = BUTTON_PRESSED;
+
+
+            /*
+             * ==========================================
+             *       PULSACIÓN CONFIRMADA
+             * ==========================================
+             *
+             * Devolvemos el número del botón.
+             *
+             * i = 0 -> botón 1
+             * i = 1 -> botón 2
+             * i = 2 -> botón 3
+             * i = 3 -> botón 4
+             */
+
+            return i + 1;
+
+
+          } else {
+
+
+            /*
+             * El botón volvió a LOW antes de confirmar.
+             *
+             * Probablemente fue ruido o rebote.
+             */
+
+            button_state[i] = BUTTON_RELEASED;
+
+          }
+
+        }
+
+        break;
+
+
+      /*==================================================*/
+      /* BOTÓN PRESIONADO                                 */
+      /*==================================================*/
+
+      case BUTTON_PRESSED:
+
+
+        /*
+         * Mientras permanezca HIGH,
+         * seguimos considerando que está presionado.
+         */
+
+        if (!pressed) {
+
+
+          /*
+           * Detectamos que comenzó la liberación.
+           */
+
+          button_state[i] = BUTTON_RELEASING;
+
+
+          button_timer[i] = millis();
+
+        }
+
+        break;
+
+
+      /*==================================================*/
+      /* POSIBLE LIBERACIÓN                               */
+      /*==================================================*/
+
+      case BUTTON_RELEASING:
+
+
+        /*
+         * Esperamos 30 ms para confirmar
+         * que realmente fue liberado.
+         */
+
+        if (millis() - button_timer[i] >= DEBOUNCE_TIME) {
+
+
+          if (digitalRead(button_pins[i]) == LOW) {
+
+
+            /*
+             * Liberación confirmada.
+             */
+
+            button_state[i] = BUTTON_RELEASED;
+
+
+          } else {
+
+
+            /*
+             * Volvió a HIGH.
+             *
+             * Probablemente fue rebote.
+             */
+
+            button_state[i] = BUTTON_PRESSED;
+
+          }
+
+        }
+
+        break;
+
+
+      /*==================================================*/
+
+      default:
+
+        button_state[i] = BUTTON_RELEASED;
+
+        break;
+
+    }
+
+  }
+
+
+  /*
+   * Si recorremos todos los botones y ninguno
+   * generó una pulsación confirmada:
+   */
+
+  return 0;
+}
 
 // Función para obtener fecha/hora de compilación
 RtcDateTime CompileDateTime() {
@@ -209,18 +462,57 @@ void updateLCD(RtcDateTime now) {
 
   lcd.clear();
 
-  // Primera fila -> Temperatura
-  lcd.setCursor(0, 0);
-  lcd.print("Temp: ");
-  lcd.print(tempDHT, 1);
-  lcd.print((char)223); // simbolo °
-  lcd.print("C");
+  switch(StateView){
+    
+    case 1:
+      /*Primer vista LCD*/
+      
+      /*Mostramos 
+      * Temperatura del sensor DHT22
+      * Humedad relativa del sensor DHT22
+      */
+      // Primera fila -> Temperatura
+      lcd.setCursor(0, 0);
+      lcd.print("Temp: ");
+      lcd.print(tempDHT, 1);
+      lcd.print((char)223); // simbolo °
+      lcd.print("C");
+      
+      // Segunda fila -> Humedad
+      lcd.setCursor(0, 1);
+      lcd.print("Humedad: ");
+      lcd.print(humidity, 1);
+      lcd.print("%");
+      
+      break;
+    case 2:
+      /*Segunda vista LCD*/
+      
+      /*Mostramos 
+      * Temperatura de la zonda
+      * Lux en el habiemte
+      */
+      // Primera fila -> Temperatura agua
+      lcd.setCursor(0, 0);
+      lcd.print("Agua: ");
+      lcd.print(tempDeep, 1);
+      lcd.print((char)223);
+      lcd.print("C");
 
-  // Segunda fila -> Luz
-  lcd.setCursor(0, 1);
-  lcd.print("Luz: ");
-  lcd.print((int)lux);
-  lcd.print(" lx");
+      // Segunda fila -> Luz
+      lcd.setCursor(0, 1);
+      lcd.print("Luz: ");
+      lcd.print((int)lux);
+      lcd.print(" lx");
+      
+      break;
+    default:
+      // Si por algún motivo StateView
+      // toma un valor inválido
+      StateView = 1;
+      break;
+  }
+
 }
 
 /*Funcion destinada a la conexion WIFI */

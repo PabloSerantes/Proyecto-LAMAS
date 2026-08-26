@@ -54,7 +54,6 @@ const char* access_token = "eFeDWbiJ0kWXr1hqDMRq"; // Se obtiene en la plataform
 unsigned long ready = 0;
 unsigned long horaprevia = 0;
 unsigned long horaActual = 0;
-unsigned long ultimoEnvio = 0;
 
 //Metricas de interes
 float humidity = 0, tempDHT = 0;
@@ -64,9 +63,6 @@ float tempDeep = 0;
 //Datos de conexion a la red
 const char* ssid = "FCAL";
 const char* password = "fcalconcordia.06-2019";
-
-// Intervalo de envío: 15 minutos
-const unsigned long INTERVALO_ENVIO = 15UL * 60UL * 1000UL;
 
 /*=============== fin Variables globales ================*/
 
@@ -123,9 +119,6 @@ void setup() {
   //------------------------------------//  
   client.setServer(mqtt_server, 1883);
 
-  // Iniciar temporizador de envío
-  ultimoEnvio = millis();
-
 }
 
 void loop() {
@@ -138,37 +131,29 @@ void loop() {
 
   unsigned long ahora = millis();
 
-  // Ejecutar ciclo de control cada 500 ms
   if (ahora - ready >= 500) {
+    /*Ingresa cada medio segundo*/
 
     RtcDateTime now = Rtc.GetDateTime();
 
-    // Cada 15 minutos actualizamos lecturas,
-    // LCD y enviamos datos a ThingsBoard
-    if (ahora - ultimoEnvio >= INTERVALO_ENVIO) {
+    horaActual = now.Hour() * 3600UL +
+                 now.Minute() * 60UL +
+                 now.Second();
 
-      Serial.println();
-      Serial.println("================================");
-      Serial.println("Actualizando sensores...");
-      Serial.println("================================");
+    // Cada 15 segundos actualizamos lecturas y impresiones
+    if (horaActual - horaprevia >= 15) {
 
       readDHT();
       readBH1750();
       readDS18B20();
-
       updateLCD(now);
       sendData();
-
-      // Reiniciar temporizador
-      ultimoEnvio = ahora;
-
-      Serial.println("Datos enviados a ThingsBoard.");
-      Serial.println("Proximo envio en 15 minutos.");
+      horaprevia = horaActual;
     }
 
     ready = ahora;
   }
-
+}
 /*=============== Desarrollo de funciones ====================*/
 
 // Función para obtener fecha/hora de compilación

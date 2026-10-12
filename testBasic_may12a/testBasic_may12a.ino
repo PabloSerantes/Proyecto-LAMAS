@@ -76,8 +76,11 @@ float lux = 0;
 float tempDeep = 0;
 
 //Datos de conexion a la red
-const char* ssid = "FCAL";
-const char* password = "fcalconcordia.06-2019";
+//const char* ssid = "FCAL";
+//const char* password = "fcalconcordia.06-2019";
+
+const char* ssid = " Red Haffner";
+const char* password = "21669051";
 
 //Variables para el control de pulsadores
 // Estado independiente para cada pulsador
@@ -174,7 +177,7 @@ void loop() {
 
       readDHT();
       readBH1750();
-      //readDS18B20();
+      readDS18B20();
       updateLCD(now);
       sendData();
       horaprevia = horaActual;

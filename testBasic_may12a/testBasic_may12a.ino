@@ -62,8 +62,10 @@ float lux = 0;
 float tempDeep = 0;
 
 //Datos de conexion a la red
-const char* ssid = "FCAL";
-const char* password = "fcalconcordia.06-2019";
+//const char* ssid = "FCAL";
+//const char* password = "fcalconcordia.06-2019";
+const char* ssid = " Red Haffner";
+const char* password = "21669051";
 
 // Intervalo de envío: 15 minutos
 const unsigned long INTERVALO_ENVIO = 15UL * 60UL * 1000UL;
@@ -167,6 +169,9 @@ void loop() {
     }
 
     ready = ahora;
+  }
+  
+  
   }
 
 /*=============== Desarrollo de funciones ====================*/

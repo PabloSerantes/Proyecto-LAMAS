@@ -69,6 +69,7 @@ const char* access_token = "eFeDWbiJ0kWXr1hqDMRq"; // Se obtiene en la plataform
 unsigned long ready = 0;
 unsigned long horaprevia = 0;
 unsigned long horaActual = 0;
+unsigned long ultimoEnvio = 0;
 
 //Metricas de interes
 float humidity = 0, tempDHT = 0;
@@ -78,7 +79,6 @@ float tempDeep = 0;
 //Datos de conexion a la red
 //const char* ssid = "FCAL";
 //const char* password = "fcalconcordia.06-2019";
-
 const char* ssid = " Red Haffner";
 const char* password = "21669051";
 
@@ -89,6 +89,9 @@ ButtonState button_state[NUM_BUTTONS] = { BUTTON_RELEASED, BUTTON_RELEASED, BUTT
 const uint8_t button_pins[NUM_BUTTONS] = { BUTTON_1, BUTTON_2, BUTTON_3, BUTTON_4 };
 // Momento en que se detectó el cambio
 unsigned long button_timer[NUM_BUTTONS] = { 0, 0, 0, 0 };
+
+// Intervalo de envío: 15 minutos
+const unsigned long INTERVALO_ENVIO = 15UL * 60UL * 1000UL;
 
 /*=============== fin Variables globales ================*/
 
@@ -151,6 +154,9 @@ void setup() {
   //------------------------------------//  
   client.setServer(mqtt_server, 1883);
 
+  // Iniciar temporizador de envío
+  ultimoEnvio = millis();
+
 }
 
 void loop() {
@@ -163,28 +169,37 @@ void loop() {
 
   unsigned long ahora = millis();
 
+  // Ejecutar ciclo de control cada 500 ms
   if (ahora - ready >= 500) {
-    /*Ingresa cada medio segundo*/
 
     RtcDateTime now = Rtc.GetDateTime();
 
-    horaActual = now.Hour() * 3600UL +
-                 now.Minute() * 60UL +
-                 now.Second();
+    // Cada 15 minutos actualizamos lecturas,
+    // LCD y enviamos datos a ThingsBoard
+    if (ahora - ultimoEnvio >= INTERVALO_ENVIO) {
 
-    // Cada 15 segundos actualizamos lecturas y impresiones
-    if (horaActual - horaprevia >= 15) {
+      Serial.println();
+      Serial.println("================================");
+      Serial.println("Actualizando sensores...");
+      Serial.println("================================");
 
       readDHT();
       readBH1750();
       readDS18B20();
+
       updateLCD(now);
       sendData();
-      horaprevia = horaActual;
+
+      // Reiniciar temporizador
+      ultimoEnvio = ahora;
+
+      Serial.println("Datos enviados a ThingsBoard.");
+      Serial.println("Proximo envio en 15 minutos.");
     }
 
     ready = ahora;
   }
+
 
   int boton = button_update();
     /*
@@ -201,6 +216,7 @@ void loop() {
   }
 
 }
+
 /*=============== Desarrollo de funciones ====================*/
 
 // Funcion para actualizar el estado de los pulsadores

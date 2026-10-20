@@ -79,9 +79,8 @@ float tempDeep = 0;
 //Datos de conexion a la red
 //const char* ssid = "FCAL";
 //const char* password = "fcalconcordia.06-2019";
-const char* ssid = " Red Haffner";
-const char* password = "21669051";
-
+const char* ssid = "RiveroWifi/HICOMP";
+const char* password = "223465so";
 //Variables para el control de pulsadores
 // Estado independiente para cada pulsador
 ButtonState button_state[NUM_BUTTONS] = { BUTTON_RELEASED, BUTTON_RELEASED, BUTTON_RELEASED, BUTTON_RELEASED };

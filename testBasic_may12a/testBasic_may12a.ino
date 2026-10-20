@@ -23,8 +23,8 @@
 
 #define DS18B20 18
 
-#define BUTTON_1 3  /*Pin provisional */
-#define BUTTON_2 1  /*Pin provisional */
+#define BUTTON_1 25  /*Pin provisional 3 25 */
+#define BUTTON_2 26  /*Pin provisional 1 26*/
 #define BUTTON_3 39 /*Pin provisional */
 #define BUTTON_4 36 /*Pin provisional */
 

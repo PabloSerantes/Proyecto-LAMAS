@@ -71,6 +71,9 @@ unsigned long horaprevia = 0;
 unsigned long horaActual = 0;
 unsigned long ultimoEnvio = 0;
 
+// Estado de la vista del LCD
+int StateView = 1;
+
 //Metricas de interes
 float humidity = 0, tempDHT = 0;
 float lux = 0;
@@ -199,18 +202,15 @@ void loop() {
     ready = ahora;
   }
 
-
   int boton = button_update();
-    /*
+  /*
    * Si boton != 0 significa que se confirmó
    * una nueva pulsación.
    */
-
   if (boton != 0) {
-
-    Serial.print("Pulsador presionado: ");
-
-    Serial.println(boton);
+    updateDisplayState(boton);
+    RtcDateTime now = Rtc.GetDateTime();
+    updateLCD(now);
 
   }
 
@@ -423,6 +423,38 @@ int button_update(void) {
   return 0;
 }
 
+//Funcion que vincula los pulsos con la variable de control de las pantallas LCD
+void updateDisplayState(int pulsador){
+    switch (pulsador) {
+        case 1:  // Incrementar estado
+            if (StateView == 1) {
+                StateView = 2;
+            } else if (StateView == 2) {
+                StateView = 3;
+            } else {
+                StateView = 1;
+            }
+            break;
+
+        case 2:  // Decrementar estado
+            if (StateView == 1) {
+                StateView = 3;
+            } else if (StateView == 3) {
+                StateView = 2;
+            } else {
+                StateView = 1;
+            }
+            break;
+
+        case 3:  // Acceso directo al diagnóstico
+            StateView = 4;
+            break;
+
+        case 4:
+            // Sin asignar por ahora
+            break;
+    }
+}
 // Función para obtener fecha/hora de compilación
 RtcDateTime CompileDateTime() {
   return RtcDateTime(__DATE__, __TIME__);
@@ -472,22 +504,57 @@ void readDS18B20(){
   Serial.println(F(" C"));
 }
 // Funcion que escribe en el LCD
-void updateLCD(RtcDateTime now) {
+void updateLCD(RtcDateTime now){
+    lcd.clear();
 
-  lcd.clear();
+    switch (StateView) {
+        case 1:
+            lcd.setCursor(0, 0);
+            lcd.print("Temp: ");
+            lcd.print(tempDHT);
+            lcd.print((char)223);
+            lcd.print("C");
 
-  // Primera fila -> Temperatura
-  lcd.setCursor(0, 0);
-  lcd.print("Temp: ");
-  lcd.print(tempDHT, 1);
-  lcd.print((char)223); // simbolo °
-  lcd.print("C");
+            lcd.setCursor(0, 1);
+            lcd.print("Humedad: ");
+            lcd.print(humidity);
+            lcd.print("%");
+            break;
 
-  // Segunda fila -> Luz
-  lcd.setCursor(0, 1);
-  lcd.print("Luz: ");
-  lcd.print((int)lux);
-  lcd.print(" lx");
+        case 2:
+            lcd.setCursor(0, 0);
+            lcd.print("Agua: ");
+            lcd.print(tempDeep);
+            lcd.print((char)223);
+            lcd.print("C");
+
+            lcd.setCursor(0, 1);
+            lcd.print("Luz: ");
+            lcd.print(lux);
+            lcd.print(" lx");
+            break;
+
+        case 3:
+            lcd.setCursor(0, 0);
+            lcd.print("pH:");
+            break;
+
+        case 4:
+            lcd.setCursor(0, 0);
+            lcd.print("Estado conexion");
+
+            lcd.setCursor(0, 1);
+            lcd.print("WiFi:");
+            lcd.print(WiFi.status() == WL_CONNECTED ? "OK" : "OFF");
+
+            lcd.print(" MQTT:");
+            lcd.print(client.connected() ? "OK" : "OFF");
+            break;
+
+        default:
+            StateView = 1;
+            break;
+    }
 }
 
 /*Funcion destinada a la conexion WIFI */

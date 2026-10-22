@@ -79,9 +79,10 @@ float lux = 0;
 float tempDeep = 0;
 
 //Datos de conexion a la red
-const char* ssid = "FCAL";
-const char* password = "fcalconcordia.06-2019";
-
+//const char* ssid = "FCAL";
+//const char* password = "fcalconcordia.06-2019";
+const char* ssid = "RiveroWifi/HICOMP";
+const char* password = "223465so";
 //Variables para el control de pulsadores
 // Estado independiente para cada pulsador
 ButtonState button_state[NUM_BUTTONS] = { BUTTON_RELEASED, BUTTON_RELEASED, BUTTON_RELEASED, BUTTON_RELEASED };
@@ -192,13 +193,10 @@ void loop() {
    * Si boton != 0 significa que se confirmó
    * una nueva pulsación.
    */
-
   if (boton != 0) {
-
-    Serial.print("Pulsador presionado: ");
-
-    Serial.println(boton);
-
+    updateDisplayState(boton);
+    RtcDateTime now = Rtc.GetDateTime();
+    updateLCD(now);
   }
 
 }
@@ -409,6 +407,38 @@ int button_update(void) {
   return 0;
 }
 
+//Funcion que vincula los pulsos con la variable de control de las pantallas LCD
+void updateDisplayState(int pulsador){
+    switch (pulsador) {
+        case 1:  // Incrementar estado
+            if (StateView == 1) {
+                StateView = 2;
+            } else if (StateView == 2) {
+                StateView = 3;
+            } else {
+                StateView = 1;
+            }
+            break;
+
+        case 2:  // Decrementar estado
+            if (StateView == 1) {
+                StateView = 3;
+            } else if (StateView == 3) {
+                StateView = 2;
+            } else {
+                StateView = 1;
+            }
+            break;
+
+        case 3:  // Acceso directo al diagnóstico
+            StateView = 4;
+            break;
+
+        case 4:
+            // Sin asignar por ahora
+            break;
+    }
+}
 // Función para obtener fecha/hora de compilación
 RtcDateTime CompileDateTime() {
   return RtcDateTime(__DATE__, __TIME__);
@@ -458,61 +488,57 @@ void readDS18B20(){
   Serial.println(F(" C"));
 }
 // Funcion que escribe en el LCD
-void updateLCD(RtcDateTime now) {
+void updateLCD(RtcDateTime now){
+    lcd.clear();
 
-  lcd.clear();
+    switch (StateView) {
+        case 1:
+            lcd.setCursor(0, 0);
+            lcd.print("Temp: ");
+            lcd.print(tempDHT);
+            lcd.print((char)223);
+            lcd.print("C");
 
-  switch(StateView){
-    
-    case 1:
-      /*Primer vista LCD*/
-      
-      /*Mostramos 
-      * Temperatura del sensor DHT22
-      * Humedad relativa del sensor DHT22
-      */
-      // Primera fila -> Temperatura
-      lcd.setCursor(0, 0);
-      lcd.print("Temp: ");
-      lcd.print(tempDHT, 1);
-      lcd.print((char)223); // simbolo °
-      lcd.print("C");
-      
-      // Segunda fila -> Humedad
-      lcd.setCursor(0, 1);
-      lcd.print("Humedad: ");
-      lcd.print(humidity, 1);
-      lcd.print("%");
-      
-      break;
-    case 2:
-      /*Segunda vista LCD*/
-      
-      /*Mostramos 
-      * Temperatura de la zonda
-      * Lux en el habiemte
-      */
-      // Primera fila -> Temperatura agua
-      lcd.setCursor(0, 0);
-      lcd.print("Agua: ");
-      lcd.print(tempDeep, 1);
-      lcd.print((char)223);
-      lcd.print("C");
+            lcd.setCursor(0, 1);
+            lcd.print("Humedad: ");
+            lcd.print(humidity);
+            lcd.print("%");
+            break;
 
-      // Segunda fila -> Luz
-      lcd.setCursor(0, 1);
-      lcd.print("Luz: ");
-      lcd.print((int)lux);
-      lcd.print(" lx");
-      
-      break;
-    default:
-      // Si por algún motivo StateView
-      // toma un valor inválido
-      StateView = 1;
-      break;
-  }
+        case 2:
+            lcd.setCursor(0, 0);
+            lcd.print("Agua: ");
+            lcd.print(tempDeep);
+            lcd.print((char)223);
+            lcd.print("C");
 
+            lcd.setCursor(0, 1);
+            lcd.print("Luz: ");
+            lcd.print(lux);
+            lcd.print(" lx");
+            break;
+
+        case 3:
+            lcd.setCursor(0, 0);
+            lcd.print("pH:");
+            break;
+
+        case 4:
+            lcd.setCursor(0, 0);
+            lcd.print("Estado conexion");
+
+            lcd.setCursor(0, 1);
+            lcd.print("WiFi:");
+            lcd.print(WiFi.status() == WL_CONNECTED ? "OK" : "OFF");
+
+            lcd.print(" MQTT:");
+            lcd.print(client.connected() ? "OK" : "OFF");
+            break;
+
+        default:
+            StateView = 1;
+            break;
+    }
 }
 
 /*Funcion destinada a la conexion WIFI */
